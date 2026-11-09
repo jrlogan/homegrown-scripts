@@ -1,0 +1,22 @@
+{
+  "name": "Example Project",
+  "pitch": "One sentence a member would understand without context: what it is and who it's for.",
+  "description": "A few short paragraphs: what it does, where it stands, and what would help you right now.\n\nKeep it plain. Say what's real today and what's next.",
+  "tags": [
+    "#civic",
+    "#community"
+  ],
+  "status": "building",
+  "looking_for": [
+    "feedback",
+    "testers"
+  ],
+  "tech_stack": [
+    "React",
+    "TypeScript"
+  ],
+  "links": [
+    "https://example.com"
+  ],
+  "hidden": true
+}

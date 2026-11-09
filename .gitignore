@@ -1,0 +1,14 @@
+# Your login. Never commit it.
+.env
+
+# Other members' projects and updates, and saved pages.
+data/
+
+# Your personal notes for the assistant.
+CLAUDE.local.md
+
+# Your own project files. Only the example is shared.
+projects/*
+!projects/example.json
+
+node_modules/

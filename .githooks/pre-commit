@@ -1,0 +1,19 @@
+#!/bin/sh
+# Refuses commits that would publish a login or other members' data.
+fail() { echo "pre-commit: $1" >&2; echo "Nothing was committed. Unstage it with: git rm --cached <file>  (the file stays on disk)" >&2; exit 1; }
+
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+for f in $files; do
+  case "$f" in
+    .env|.env.*) [ "$f" = ".env.example" ] || fail "$f holds your login." ;;
+    data/*) fail "$f is from data/ (other members' projects or saved pages)." ;;
+    CLAUDE.local.md) fail "CLAUDE.local.md holds your personal notes." ;;
+  esac
+done
+
+# A filled-in HGT_COOKIE or a pasted Cookie header anywhere in the staged changes.
+# A real cookie looks like name=value, so HGT_COOKIE=${cookie} in code doesn't count.
+if git diff --cached -U0 | grep -E '^\+' | grep -qiE 'HGT_COOKIE=[A-Za-z0-9_.-]+=[^[:space:];]{8,}|cookie:[[:space:]]*[A-Za-z0-9_.-]+=[^[:space:];]{16,}'; then
+  fail "the staged changes look like they contain a cookie."
+fi
+exit 0
