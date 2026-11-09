@@ -19,14 +19,21 @@ You need Node 20 or newer. There are no packages to install.
    git config core.hooksPath .githooks
    ```
 
-2. Sign in at https://newhaven.homegrowntech.dev in Chrome.
+2. Open a **private (incognito) window** in Chrome and sign in at
+   https://newhaven.homegrowntech.dev there. This gives the script a sign-in of its own, so
+   signing out in your normal browser won't sign it out too.
 3. Open DevTools (Ctrl+Shift+I, or Cmd+Option+I on a Mac) → Network. Reload the page, click the
    first request, and under Request Headers right-click the **Cookie** value → Copy value.
 4. Run `node bin/hgt.mjs cookie`. It saves the cookie from your clipboard to `.env` without
-   showing it. The script keeps the site's hourly renewals itself; copy a fresh one only when it
-   tells you to.
+   showing it. Then close the private window **without signing out**.
+5. Run `node bin/hgt.mjs doctor` to check that you're signed in.
 
-The cookie is your login. `.env` is git-ignored. Don't paste it into a chat, an issue or a commit.
+You only do this once. The site renews your sign-in every hour and the script saves each renewal,
+so it stays signed in for as long as you keep using it. If it ever stops (you sign out of every
+session, or the site ends old sign-ins), `doctor` will say so: repeat steps 2 to 4.
+
+The cookie is your login, and it lasts. `.env` is git-ignored and only you can read it. Don't paste
+it into a chat, an issue or a commit. To cut it off, sign out on the site.
 
 Optional: put notes about yourself and your projects in `CLAUDE.local.md` (git-ignored), so the
 assistant can point out what's relevant to you. For example: "I'm Sam. I build a tool-lending app and
@@ -34,7 +41,13 @@ care about parks and local giving."
 
 ## Use
 
-In Claude Code, open this folder and ask in plain words:
+In Claude Code, open this folder and use the commands that come with it:
+
+- `/whats-new`: what's new in the group, and what's relevant to you.
+- `/weekly-update`: drafts your update for the next meetup from what you actually did.
+- `/new-project`: turns one of your repos or ideas into a project card, hidden first.
+
+Or ask in plain words:
 
 - "What's new in the group?"
 - "Who needs something I could help with?"
@@ -44,6 +57,7 @@ In Claude Code, open this folder and ask in plain words:
 Or run the commands yourself:
 
 ```sh
+node bin/hgt.mjs doctor                # check your setup and sign-in
 node bin/hgt.mjs news                  # new projects since last run + latest weekly updates
 node bin/hgt.mjs projects              # every project
 node bin/hgt.mjs project "anno music"  # one project in full
@@ -55,6 +69,9 @@ node bin/hgt.mjs add projects/my-app.json --submit    # adds the project
 ```
 
 Add `--json` to any read command for output an assistant can work with.
+
+Using Codex, Cursor or another assistant? `AGENTS.md` points it at the same rules, and the
+commands in `.claude/skills/` are plain instructions any assistant can follow.
 
 ### Project files
 

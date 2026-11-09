@@ -13,6 +13,7 @@
 //   node bin/hgt.mjs mine                       your projects (hidden ones included)
 //   node bin/hgt.mjs updates [count]            weekly updates from the last few meetups (default 2)
 //   node bin/hgt.mjs cookie                     save the Cookie header from your clipboard to .env
+//   node bin/hgt.mjs doctor                     check your setup and whether you're signed in
 //   node bin/hgt.mjs check projects/x.json      no network
 //   node bin/hgt.mjs add projects/x.json        dry run: loads the form, posts nothing
 //   node bin/hgt.mjs add projects/x.json --submit
@@ -53,7 +54,14 @@ function saveCookie(cookie) {
 }
 
 function readClipboard() {
-  for (const [cmd, args] of [["wl-paste", ["--no-newline"]], ["xclip", ["-o", "-selection", "clipboard"]], ["pbpaste", []]]) {
+  const readers = [
+    ["pbpaste", []], // macOS
+    ["wl-paste", ["--no-newline"]], // Linux, Wayland
+    ["xclip", ["-o", "-selection", "clipboard"]], // Linux, X11
+    ["powershell.exe", ["-NoProfile", "-Command", "Get-Clipboard -Raw"]], // Windows (and WSL)
+    ["pwsh", ["-NoProfile", "-Command", "Get-Clipboard -Raw"]],
+  ];
+  for (const [cmd, args] of readers) {
     try {
       return execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
     } catch {}
@@ -431,6 +439,48 @@ async function add(path, submit) {
   }
 }
 
+/**
+ * When the saved sign-in runs out, read from the site's own session cookie (Supabase stores it as
+ * "base64-" + JSON, sometimes split across .0, .1 ... cookies). Only the expiry is read; nothing is printed.
+ */
+function sessionExpiry() {
+  try {
+    const parts = (process.env.HGT_COOKIE || "")
+      .split(/;\s*/)
+      .map((c) => [c.slice(0, c.indexOf("=")), c.slice(c.indexOf("=") + 1)])
+      .filter(([k]) => /^sb-.*-auth-token(\.\d+)?$/.test(k))
+      .sort(([a], [b]) => Number(a.split(".").pop()) - Number(b.split(".").pop()));
+    let raw = decodeURIComponent(parts.map(([, v]) => v).join(""));
+    if (raw.startsWith("base64-")) raw = Buffer.from(raw.slice(7), "base64url").toString("utf8");
+    const at = JSON.parse(raw).expires_at;
+    return at ? new Date(at * 1000) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function doctor() {
+  const ok = (m) => console.log(`✓ ${m}`);
+  const warn = (m) => console.log(`! ${m}`);
+  const major = Number(process.versions.node.split(".")[0]);
+  major >= 20 ? ok(`Node ${process.versions.node}`) : fail(`Node ${process.versions.node} is too old; install Node 20 or newer.`);
+  if (!process.env.HGT_COOKIE) fail("no login saved yet. Follow the README's setup, then run: node bin/hgt.mjs cookie");
+  ok("a login is saved in .env (not shown)");
+  try {
+    const hooks = execFileSync("git", ["config", "core.hooksPath"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    hooks === ".githooks" ? ok("the commit check is on") : warn("the commit check is off. Turn it on: git config core.hooksPath .githooks");
+  } catch {
+    warn("the commit check is off. Turn it on: git config core.hooksPath .githooks");
+  }
+  const me = await myProfile(); // fails with a plain message if the login has run out
+  ok(`signed in: ${session().base}${me}`);
+  const until = sessionExpiry();
+  if (until) {
+    const mins = Math.round((until - Date.now()) / 60000);
+    ok(mins > 0 ? `this sign-in renews itself in about ${mins} minutes; the script saves each renewal` : "the sign-in was just renewed and saved");
+  }
+}
+
 loadEnv();
 const argv = process.argv.slice(2);
 const json = argv.includes("--json");
@@ -445,6 +495,8 @@ if (cmd === "cookie") {
   if (!/^[^=;\s]+=/.test(cookie) || /\n/.test(cookie)) fail("the clipboard doesn't hold a Cookie header. Copy the Cookie value from DevTools (see README) and try again.");
   saveCookie(cookie);
   console.log(`✓ saved a ${cookie.length}-character cookie to .env (not shown)`);
+} else if (cmd === "doctor") {
+  await doctor();
 } else if (cmd === "check" && file) {
   const project = readProject(file);
   console.log(`✓ ${file} passes the form's limits`);
@@ -486,7 +538,7 @@ if (cmd === "cookie") {
   });
 } else {
   console.log(
-    "usage:\n  node bin/hgt.mjs cookie   (saves the Cookie header from your clipboard)\n  node bin/hgt.mjs news | projects | project <id or name> | mine | updates [count]   (add --json for assistants)\n" +
+    "usage:\n  node bin/hgt.mjs cookie   (saves the Cookie header from your clipboard)\n  node bin/hgt.mjs doctor   (checks your setup and sign-in)\n  node bin/hgt.mjs news | projects | project <id or name> | mine | updates [count]   (add --json for assistants)\n" +
       "  node bin/hgt.mjs check <project.json>\n  node bin/hgt.mjs add <project.json> [--submit]",
   );
   process.exit(cmd ? 1 : 0);

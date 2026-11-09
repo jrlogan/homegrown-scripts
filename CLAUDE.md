@@ -80,5 +80,8 @@ Editing projects and messaging are not built.
 
 ## Changing this repo
 
+The commands `/whats-new`, `/weekly-update` and `/new-project` live in `.claude/skills/`; keep them
+consistent with the rules above.
+
 See CONTRIBUTING.md. In short: no packages, one script, and every change to what gets posted
 keeps the three steps above.
